@@ -3,108 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rover MQTT Pro - Rivaldi</title>
+    <title>RC Rover - GitHub Ready</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
-        :root { --accent: #00f2ff; --bg: #0a0a0c; --card: #16161a; --red: #ff4d4d; }
-        * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; box-sizing: border-box; }
-        body { margin:0; background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        :root { --accent: #00f2ff; --bg: #0a0a0c; --card: #1a1a1d; --red: #ff4d4d; }
+        * { box-sizing: border-box; -webkit-touch-callout: none; user-select: none; touch-action: manipulation; }
+        body { margin:0; background: var(--bg); color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
         
         .header { width: 100%; padding: 20px; background: var(--card); border-bottom: 1px solid #333; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-        .config-area { display: flex; gap: 10px; width: 100%; max-width: 500px; }
-        input { flex: 1; background: #000; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 10px; outline: none; }
+        .config { display: flex; gap: 10px; width: 100%; max-width: 450px; }
+        input { flex: 1; background: #000; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 10px; outline: none; text-align: center; }
         .btn-conn { background: var(--accent); border: none; padding: 0 20px; border-radius: 10px; font-weight: bold; cursor: pointer; }
 
-        .container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px; width: 100%; padding: 20px; }
-        
-        .stats { display: flex; gap: 15px; width: 100%; max-width: 500px; }
+        .main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px; width: 100%; padding: 20px; }
+        .stats { display: flex; gap: 15px; width: 100%; max-width: 400px; }
         .card { flex: 1; background: var(--card); padding: 20px; border-radius: 20px; text-align: center; border: 1px solid rgba(0,242,255,0.1); }
         .val { font-size: 32px; font-weight: bold; color: var(--accent); display: block; margin-top: 5px; }
 
         .dpad { display: grid; grid-template-columns: repeat(3, 85px); gap: 15px; }
-        .btn-move { width: 85px; height: 85px; border: 2px solid var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; background: rgba(0,242,255,0.05); }
-        .btn-move:active { background: var(--accent); color: #000; transform: scale(0.9); }
-        .btn-move svg { width: 35px; height: 35px; stroke: currentColor; fill: none; stroke-width: 2.5; }
+        .btn-m { width: 85px; height: 85px; border: 2px solid var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,242,255,0.05); }
+        .btn-m:active { background: var(--accent); color: #000; transform: scale(0.9); }
+        .btn-m svg { width: 35px; height: 35px; stroke: currentColor; fill: none; stroke-width: 2.5; }
         .stop { border-color: var(--red); color: var(--red); }
-
-        #status { padding: 10px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
-        .online { color: var(--accent); }
-        .offline { color: var(--red); }
+        #status { padding: 10px; font-size: 11px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <label style="font-size: 10px; color: var(--accent);">ROOT TOPIC (ID ROVER)</label>
-        <div class="config-area">
-            <input type="text" id="root_topic" value="rcrover01">
-            <button class="btn-conn" onclick="connectMQTT()">CONNECT</button>
+        <div class="config">
+            <input type="text" id="root" value="rcrover01">
+            <button class="btn-conn" onclick="connect()">CONNECT</button>
         </div>
     </div>
 
-    <div class="container">
+    <div class="main">
         <div class="stats">
-            <div class="card">TEMP<span class="val" id="t_val">--°C</span></div>
-            <div class="card">GAS<span class="val" id="g_val">--ppm</span></div>
+            <div class="card">TEMP<span class="val" id="t">--°C</span></div>
+            <div class="card">GAS<span class="val" id="g">--</span></div>
         </div>
 
         <div class="dpad">
-            <div style="grid-column: 2" class="btn-move" data-dir="F"><svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg></div>
-            <div style="grid-column: 1; grid-row: 2" class="btn-move" data-dir="L"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></div>
-            <div style="grid-column: 2; grid-row: 2" class="btn-move stop" data-dir="S"><svg viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="2"/></svg></div>
-            <div style="grid-column: 3; grid-row: 2" class="btn-move" data-dir="R"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
-            <div style="grid-column: 2; grid-row: 3" class="btn-move" data-dir="B"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+            <div style="grid-column: 2" class="btn-m" data-dir="F"><svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg></div>
+            <div style="grid-column: 1; grid-row: 2" class="btn-m" data-dir="L"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></div>
+            <div style="grid-column: 2; grid-row: 2" class="btn-m stop" data-dir="S"><svg viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="2"/></svg></div>
+            <div style="grid-column: 3; grid-row: 2" class="btn-m" data-dir="R"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
+            <div style="grid-column: 2; grid-row: 3" class="btn-m" data-dir="B"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
         </div>
     </div>
 
     <div id="status">STATUS: TERPUTUS</div>
 
     <script>
-        let client;
-        let root = "";
-
-        function connectMQTT() {
-            root = document.getElementById('root_topic').value;
-            const statusBox = document.getElementById('status');
-            
-            client = new Paho.MQTT.Client("broker.hivemq.com", 8000, "client-" + Math.random());
+        let client; let root = "";
+        function connect() {
+            root = document.getElementById('root').value;
+            // PORT 8884 UNTUK WSS (SSL)
+            client = new Paho.MQTT.Client("broker.hivemq.com", 8884, "c-" + Math.random());
             
             client.onMessageArrived = (msg) => {
-                if(msg.destinationName === root + "/data") {
-                    const data = JSON.parse(msg.payloadString);
-                    document.getElementById('t_val').innerText = data.t + "°C";
-                    document.getElementById('g_val').innerText = data.g + " ppm";
-                }
+                const data = JSON.parse(msg.payloadString);
+                document.getElementById('t').innerText = data.t + "°C";
+                document.getElementById('g').innerText = data.g;
             };
 
             client.connect({
                 onSuccess: () => {
-                    statusBox.innerText = "ONLINE: " + root;
-                    statusBox.className = "online";
+                    document.getElementById('status').innerText = "ONLINE: " + root;
+                    document.getElementById('status').style.color = "var(--accent)";
                     client.subscribe(root + "/data");
                 },
-                onFailure: () => {
-                    statusBox.innerText = "GAGAL TERHUBUNG";
-                    statusBox.className = "offline";
-                },
-                useSSL: false
+                useSSL: true, // WAJIB TRUE UNTUK GITHUB PAGES
+                onFailure: (e) => {
+                    document.getElementById('status').innerText = "GAGAL: " + e.errorMessage;
+                    document.getElementById('status').style.color = "var(--red)";
+                }
             });
         }
 
-        function send(cmd) {
+        function send(c) {
             if(client && client.isConnected()) {
-                const message = new Paho.MQTT.Message(cmd);
-                message.destinationName = root + "/control";
-                client.send(message);
+                let m = new Paho.MQTT.Message(c);
+                m.destinationName = root + "/control";
+                client.send(m);
             }
         }
 
-        document.querySelectorAll('.btn-move').forEach(btn => {
-            const dir = btn.getAttribute('data-dir');
-            btn.addEventListener('mousedown', () => send(dir));
-            btn.addEventListener('mouseup', () => { if(dir !== 'S') send('S'); });
-            btn.addEventListener('touchstart', (e) => { e.preventDefault(); send(dir); });
-            btn.addEventListener('touchend', (e) => { e.preventDefault(); if(dir !== 'S') send('S'); });
+        document.querySelectorAll('.btn-m').forEach(b => {
+            const d = b.getAttribute('data-dir');
+            b.addEventListener('mousedown', () => send(d));
+            b.addEventListener('mouseup', () => { if(d!=='S') send('S'); });
+            b.addEventListener('touchstart', (e) => { e.preventDefault(); send(d); });
+            b.addEventListener('touchend', (e) => { e.preventDefault(); if(d!=='S') send('S'); });
         });
     </script>
 </body>
